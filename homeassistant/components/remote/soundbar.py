@@ -44,7 +44,7 @@ class SoundbarRemote(remote.RemoteDevice):
 
     @property
     def should_poll(self):
-        return False
+        return True
 
     def irsend(self, key):
         call(["irsend", "SEND_ONCE", "soundbar", key])
@@ -67,9 +67,9 @@ class SoundbarRemote(remote.RemoteDevice):
                     _LOGGER.debug("No action needed")
                     return
                 elif cur_index < target_index:
-                    diff = target_index - cur_index
+                    diff = target_index - cur_index + 1
                 else:
-                    diff = len(INPUT_STATES) - cur_index + target_index
+                    diff = len(INPUT_STATES) - cur_index + target_index + 1
                 for i in range(0, diff):
                     self.irsend("SOURCE")
                     self._input_state = INPUT_STATES[(cur_index + i) % len(INPUT_STATES)]
@@ -82,9 +82,9 @@ class SoundbarRemote(remote.RemoteDevice):
                     _LOGGER.debug("No action needed")
                     return
                 elif cur_index < target_index:
-                    diff = target_index - cur_index
+                    diff = target_index - cur_index + 1
                 else:
-                    diff = len(SOUND_STATES) - cur_index + target_index
+                    diff = len(SOUND_STATES) - cur_index + target_index + 1
                 for i in range(0, diff):
                     self.irsend("SOUND")
                     self._sound_state = SOUND_STATES[(cur_index + i) % len(SOUND_STATES)]
