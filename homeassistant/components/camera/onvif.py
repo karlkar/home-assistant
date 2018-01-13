@@ -11,7 +11,8 @@ import os
 import voluptuous as vol
 
 from homeassistant.const import (
-    CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PORT)
+    CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PORT,
+    CONF_STREAM_AUTH)
 from homeassistant.components.camera import Camera, PLATFORM_SCHEMA
 from homeassistant.components.ffmpeg import (
     DATA_FFMPEG, CONF_EXTRA_ARGUMENTS)
@@ -40,6 +41,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string,
     vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
     vol.Optional(CONF_EXTRA_ARGUMENTS, default=DEFAULT_ARGUMENTS): cv.string,
+    vol.Optional(CONF_STREAM_AUTH, default=False): cv.boolean,
 })
 
 
@@ -70,6 +72,11 @@ class ONVIFCamera(Camera):
             '{}/wsdl/media.wsdl'.format(os.path.dirname(onvif.__file__))
         )
         self._input = media.GetStreamUri().Uri
+        if config.get(CONF_STREAM_AUTH):
+            self._input = self._input.replace(
+                'rtsp://', 'rtsp://{}:{}@'.format(
+                    config.get(CONF_USERNAME),
+                    config.get(CONF_PASSWORD)), 1)
         _LOGGER.debug("ONVIF Camera Using the following URL for %s: %s",
                       self._name, self._input)
 
