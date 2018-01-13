@@ -1,5 +1,4 @@
-"""
-Support for ONVIF Cameras with FFmpeg as decoder.
+""" Support for ONVIF Cameras with FFmpeg as decoder.
 
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/camera.onvif/
@@ -12,13 +11,14 @@ import voluptuous as vol
 
 from homeassistant.const import (
     CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PORT,
-    CONF_STREAM_AUTH)
-from homeassistant.components.camera import Camera, PLATFORM_SCHEMA
+    CONF_STREAM_AUTH, ATTR_ENTITY_ID)
+from homeassistant.components.camera import Camera, PLATFORM_SCHEMA, DOMAIN
 from homeassistant.components.ffmpeg import (
     DATA_FFMPEG, CONF_EXTRA_ARGUMENTS)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.aiohttp_client import (
     async_aiohttp_proxy_stream)
+from homeassistant.helpers.service import extract_entity_ids
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +34,22 @@ DEFAULT_USERNAME = 'admin'
 DEFAULT_PASSWORD = '888888'
 DEFAULT_ARGUMENTS = '-q:v 2'
 
+ATTR_PAN = "pan"
+ATTR_TILT = "tilt"
+ATTR_ZOOM = "zoom"
+
+DIR_UP = "UP"
+DIR_DOWN = "DOWN"
+DIR_LEFT = "LEFT"
+DIR_RIGHT = "RIGHT"
+ZOOM_OUT = "ZOOM_OUT"
+ZOOM_IN = "ZOOM_IN"
+
+SERVICE_PTZ = "ptz"
+
+ONVIF_DATA = "onvif"
+ENTITIES = "entities"
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
@@ -44,12 +60,55 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_STREAM_AUTH, default=False): cv.boolean,
 })
 
+SERVICE_PTZ_SCHEMA = vol.Schema({
+    ATTR_ENTITY_ID: cv.entity_ids,
+    ATTR_PAN: vol.In([DIR_LEFT, DIR_RIGHT]),
+    ATTR_TILT: vol.In([DIR_UP, DIR_DOWN]),
+    ATTR_ZOOM: vol.In([ZOOM_OUT, ZOOM_IN])
+})
+
 
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up a ONVIF camera."""
     if not hass.data[DATA_FFMPEG].async_run_test(config.get(CONF_HOST)):
         return
+
+    def handle_ptz(service):
+        """Handle PTZ service call."""
+        tilt = service.data.get(ATTR_TILT, None)
+        pan = service.data.get(ATTR_PAN, None)
+        zoom = service.data.get(ATTR_ZOOM, None)
+        all_cameras = hass.data[ONVIF_DATA][ENTITIES]
+        entity_ids = extract_entity_ids(hass, service)
+        target_cameras = []
+        if not entity_ids:
+            target_cameras = all_cameras
+        else:
+            target_cameras = [camera for camera in all_cameras
+                              if camera.entity_id in entity_ids]
+        req = None
+        for camera in target_cameras:
+            if not camera._ptz:
+                continue
+            if not req:
+                req = camera._ptz.create_type('ContinuousMove')
+                if tilt == DIR_UP:
+                    req.Velocity.PanTilt._y = 1
+                elif tilt == DIR_DOWN:
+                    req.Velocity.PanTilt._y = -1
+                if pan == DIR_LEFT:
+                    req.Velocity.PanTilt._x = -1
+                elif pan == DIR_RIGHT:
+                    req.Velocity.PanTilt._x = 1
+                if zoom == ZOOM_IN:
+                    req.Velocity.Zoom._x = 1
+                elif zoom == ZOOM_OUT:
+                    req.Velocity.Zoom._x = -1
+            camera._ptz.ContinuousMove(req)
+
+    hass.services.async_register(DOMAIN, SERVICE_PTZ, handle_ptz,
+                                 schema=SERVICE_PTZ_SCHEMA)
     async_add_devices([ONVIFCamera(hass, config)])
 
 
@@ -64,6 +123,17 @@ class ONVIFCamera(Camera):
 
         self._name = config.get(CONF_NAME)
         self._ffmpeg_arguments = config.get(CONF_EXTRA_ARGUMENTS)
+        try:
+            self._ptz = ONVIFService(
+                'http://{}:{}/onvif/device_service'.format(
+                    config.get(CONF_HOST), config.get(CONF_PORT)),
+                config.get(CONF_USERNAME),
+                config.get(CONF_PASSWORD),
+                '{}/wsdl/ptz.wsdl'.format(os.path.dirname(onvif.__file__))
+            )
+        except onvif.exceptions.ONVIFError:
+            self._ptz = None
+            _LOGGER.warning("PTZ is not supported by camera")
         media = ONVIFService(
             'http://{}:{}/onvif/device_service'.format(
                 config.get(CONF_HOST), config.get(CONF_PORT)),
@@ -79,6 +149,14 @@ class ONVIFCamera(Camera):
                     config.get(CONF_PASSWORD)), 1)
         _LOGGER.debug("ONVIF Camera Using the following URL for %s: %s",
                       self._name, self._input)
+
+    @asyncio.coroutine
+    def async_added_to_hass(self):
+        """Callback when entity is added to hass."""
+        if ONVIF_DATA not in self.hass.data:
+            self.hass.data[ONVIF_DATA] = {}
+            self.hass.data[ONVIF_DATA][ENTITIES] = []
+        self.hass.data[ONVIF_DATA][ENTITIES].append(self)
 
     @asyncio.coroutine
     def async_camera_image(self):
