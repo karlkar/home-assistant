@@ -112,12 +112,9 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                     req.Velocity.Zoom._x = -1
             camera._ptz.ContinuousMove(req)
 
-    try:
-        async_add_devices([ONVIFCamera(hass, config)])
-        hass.services.async_register(DOMAIN, SERVICE_PTZ, handle_ptz,
-                                     schema=SERVICE_PTZ_SCHEMA)
-    except Exception:
-        return
+    async_add_devices([ONVIFCamera(hass, config)])
+    hass.services.async_register(DOMAIN, SERVICE_PTZ, handle_ptz,
+                                 schema=SERVICE_PTZ_SCHEMA)
 
 
 class ONVIFCamera(Camera):
@@ -130,47 +127,52 @@ class ONVIFCamera(Camera):
         super().__init__()
 
         self._name = config.get(CONF_NAME)
+        self._stream_auth = config.get(CONF_STREAM_AUTH)
+        self._username = config.get(CONF_USERNAME)
+        self._password = config.get(CONF_PASSWORD)
         self._ffmpeg_arguments = config.get(CONF_EXTRA_ARGUMENTS)
-        try:
-            self._ptz = ONVIFService(
-                'http://{}:{}/onvif/device_service'.format(
-                    config.get(CONF_HOST), config.get(CONF_PORT)),
-                config.get(CONF_USERNAME),
-                config.get(CONF_PASSWORD),
-                '{}/wsdl/ptz.wsdl'.format(os.path.dirname(onvif.__file__))
-            )
-        except onvif.exceptions.ONVIFError:
-            self._ptz = None
-            _LOGGER.warning("PTZ is not supported by camera")
 
-        try:
-            media = ONVIFService(
-                'http://{}:{}/onvif/device_service'.format(
-                    config.get(CONF_HOST), config.get(CONF_PORT)),
-                config.get(CONF_USERNAME),
-                config.get(CONF_PASSWORD),
-                '{}/wsdl/media.wsdl'.format(os.path.dirname(onvif.__file__))
-            )
-            self._profiles = media.GetProfiles()
-            self._profile_index = config.get(CONF_PROFILE)
-            if self._profile_index >= len(self._profiles):
-                _LOGGER.warning("ONVIF Camera '%s' doesn't provide profile %d."
-                                " Using the last profile.",
-                                self._name, self._profile_index)
-                self._profile_index = -1
-            req = media.create_type('GetStreamUri')
-            req.ProfileToken = self._profiles[self._profile_index]._token
-            self._input = media.GetStreamUri(req).Uri
-            if config.get(CONF_STREAM_AUTH):
-                self._input = self._input.replace(
-                    'rtsp://', 'rtsp://{}:{}@'.format(
-                        config.get(CONF_USERNAME),
-                        config.get(CONF_PASSWORD)), 1)
-            _LOGGER.debug("ONVIF Camera Using the following URL for %s: %s",
-                          self._name, self._input)
-        except onvif.exceptions.ONVIFError:
-            _LOGGER.error("Setup of camera '%s' failed", self._name)
-            raise Exception("Setup failed")
+        self._ptz = ONVIFService(
+            'http://{}:{}/onvif/device_service'.format(
+                config.get(CONF_HOST), config.get(CONF_PORT)),
+            self._username,
+            self._password,
+            '{}/wsdl/ptz.wsdl'.format(os.path.dirname(onvif.__file__))
+        )
+
+        self._media = ONVIFService(
+            'http://{}:{}/onvif/device_service'.format(
+                config.get(CONF_HOST), config.get(CONF_PORT)),
+            self._username,
+            self._password,
+            '{}/wsdl/media.wsdl'.format(os.path.dirname(onvif.__file__))
+        )
+        self._config_profile_index = config.get(CONF_PROFILE)
+
+        self._profile_index = None
+        self._input = None
+        self._profiles = None
+        self.configure_input()
+
+    def get_profiles(self):
+        """Function gets the profiles available"""
+        return self._media.GetProfiles()
+
+    def calculate_profile_index(self):
+        """Function gets the configured profile index"""
+        if self._config_profile_index >= len(self._profiles):
+            _LOGGER.warning("ONVIF Camera '%s' doesn't provide profile %d."
+                            " Using the last available profile.",
+                            self._name, self._config_profile_index)
+            return -1
+        return self._config_profile_index
+
+    def get_stream_uri(self):
+        """Function gets the stream uri from media service"""
+        req = self._media.create_type('GetStreamUri')
+        req.ProfileToken = self._profiles[
+            self._profile_index].__dict__['_token']
+        return self._media.GetStreamUri(req).Uri
 
     @asyncio.coroutine
     def async_added_to_hass(self):
@@ -184,6 +186,10 @@ class ONVIFCamera(Camera):
     def async_camera_image(self):
         """Return a still image response from the camera."""
         from haffmpeg import ImageFrame, IMAGE_JPEG
+
+        if not self.configure_input():
+            return None
+
         ffmpeg = ImageFrame(
             self.hass.data[DATA_FFMPEG].binary, loop=self.hass.loop)
 
@@ -196,6 +202,9 @@ class ONVIFCamera(Camera):
     def handle_async_mjpeg_stream(self, request):
         """Generate an HTTP MJPEG stream from the camera."""
         from haffmpeg import CameraMjpeg
+
+        if not self.configure_input():
+            return
 
         stream = CameraMjpeg(self.hass.data[DATA_FFMPEG].binary,
                              loop=self.hass.loop)
@@ -216,14 +225,18 @@ class ONVIFCamera(Camera):
     def device_state_attributes(self):
         """Return the state attributes."""
         attrs = super().device_state_attributes
+        _LOGGER.debug("I am called now - device_state_attributes")
+        if self._profiles is None:
+            return attrs
         custom_attrs = {}
         i = 0
+        _LOGGER.debug("Wooo device_state_attributes profiles available!")
         for profile in self._profiles:
-            bounds = profile.VideoSourceConfiguration.Bounds
+            bounds = profile.VideoSourceConfiguration.Bounds.__dict__
             custom_attrs.update({"Profile #" + str(i):
-                                 str(bounds._width)
+                                 str(bounds['_width'])
                                  + " x "
-                                 + str(bounds._height)})
+                                 + str(bounds['_height'])})
             i = i + 1
         custom_attrs.update({"Active profile": str(self._profile_index)})
         if attrs:
@@ -231,3 +244,37 @@ class ONVIFCamera(Camera):
         else:
             attrs = custom_attrs
         return attrs
+
+    def configure_input(self):
+        """Configures input for displaying image/video"""
+        import onvif
+        if self._profiles is None:
+            try:
+                self._profiles = self.get_profiles()
+            except onvif.exceptions.ONVIFError:
+                self._profiles = None
+                _LOGGER.warning("Couldn't obtain profiles of camera '%s'",
+                                self._name)
+                return False
+
+        if self._profile_index is None:
+            self._profile_index = self.calculate_profile_index()
+
+        if self._input is None:
+            try:
+                self._input = self.get_stream_uri()
+                if self._stream_auth:
+                    self._input = self._input.replace(
+                        'rtsp://', 'rtsp://{}:{}@'.format(self._username,
+                                                          self._password), 1)
+
+                _LOGGER.debug(
+                    "ONVIF Camera Using the following URL for %s: %s",
+                    self._name, self._input)
+            except onvif.exceptions.ONVIFError:
+                self._input = None
+                _LOGGER.warning("Camera '%s' not currently available.",
+                                self._name)
+                return False
+
+        return True
