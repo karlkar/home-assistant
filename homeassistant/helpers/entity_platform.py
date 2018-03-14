@@ -276,6 +276,20 @@ class EntityPlatform(object):
             self._async_unsub_polling()
             self._async_unsub_polling = None
 
+    def change_scan_interval(self, interval):
+        """Changes scan interval."""
+        if self._async_unsub_polling is not None:
+            self._async_unsub_polling()
+            self._async_unsub_polling = None
+
+        self.scan_interval = interval
+        if not any(entity.should_poll for entity
+                   in self.entities.values()):
+            return
+        self._async_unsub_polling = async_track_time_interval(
+            self.hass, self._update_entity_states, self.scan_interval
+        )
+
     async def async_remove_entity(self, entity_id):
         """Remove entity id from platform."""
         await self._async_remove_entity(entity_id)

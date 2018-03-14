@@ -102,6 +102,11 @@ class EntityComponent(object):
         discovery.async_listen_platform(
             self.hass, self.domain, component_platform_discovered)
 
+    def change_scan_interval(self, interval):
+        """Changes scan interval"""
+        for platform in self._platforms.values():
+            platform.change_scan_interval(interval)
+
     @callback
     def async_extract_from_service(self, service, expand_group=True):
         """Extract all known and available entities from a service call.

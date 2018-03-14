@@ -331,6 +331,7 @@ SERVICE_TURN_ON = 'turn_on'
 SERVICE_TURN_OFF = 'turn_off'
 SERVICE_TOGGLE = 'toggle'
 SERVICE_RELOAD = 'reload'
+SERVICE_SET_INTERVAL = 'set_interval'
 
 SERVICE_VOLUME_UP = 'volume_up'
 SERVICE_VOLUME_DOWN = 'volume_down'

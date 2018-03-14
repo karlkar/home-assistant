@@ -19,7 +19,7 @@ from homeassistant.helpers import intent
 from homeassistant.const import (
     ATTR_ENTITY_ID, SERVICE_TURN_ON, SERVICE_TURN_OFF, SERVICE_TOGGLE,
     SERVICE_HOMEASSISTANT_STOP, SERVICE_HOMEASSISTANT_RESTART,
-    RESTART_EXIT_CODE)
+    RESTART_EXIT_CODE, SERVICE_SET_INTERVAL)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -155,6 +155,9 @@ def async_setup(hass, config):
         ha.DOMAIN, SERVICE_TURN_ON, async_handle_turn_service)
     hass.services.async_register(
         ha.DOMAIN, SERVICE_TOGGLE, async_handle_turn_service)
+    hass.services.async_register(
+        ha.DOMAIN, SERVICE_SET_INTERVAL, async_handle_turn_service)
+
     hass.helpers.intent.async_register(intent.ServiceIntentHandler(
         intent.INTENT_TURN_ON, ha.DOMAIN, SERVICE_TURN_ON, "Turned {} on"))
     hass.helpers.intent.async_register(intent.ServiceIntentHandler(

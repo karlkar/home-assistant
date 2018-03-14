@@ -12,7 +12,7 @@ import voluptuous as vol
 
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.entity import Entity
-from homeassistant.const import (STATE_ON, STATE_OFF)
+from homeassistant.const import (STATE_ON, STATE_OFF, SERVICE_SET_INTERVAL)
 from homeassistant.helpers.config_validation import PLATFORM_SCHEMA  # noqa
 
 DOMAIN = 'binary_sensor'
@@ -52,6 +52,12 @@ async def async_setup(hass, config):
     """Track states and offer events for binary sensors."""
     component = EntityComponent(
         logging.getLogger(__name__), DOMAIN, hass, SCAN_INTERVAL)
+
+    async def async_handle_set_interval(service):
+        await component.change_scan_interval(service.data['interval'])
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_INTERVAL, async_handle_set_interval)
 
     await component.async_setup(config)
     return True
