@@ -282,7 +282,7 @@ class EntityPlatform(object):
             self._async_unsub_polling()
             self._async_unsub_polling = None
 
-        self.scan_interval = interval
+        self.scan_interval = timedelta(seconds=interval)
         if not any(entity.should_poll for entity
                    in self.entities.values()):
             return

@@ -54,7 +54,7 @@ async def async_setup(hass, config):
         logging.getLogger(__name__), DOMAIN, hass, SCAN_INTERVAL)
 
     async def async_handle_set_interval(service):
-        await component.change_scan_interval(service.data['interval'])
+        component.change_scan_interval(service.data['interval'])
 
     hass.services.async_register(
         DOMAIN, SERVICE_SET_INTERVAL, async_handle_set_interval)

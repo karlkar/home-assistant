@@ -140,6 +140,7 @@ class MpdDevice(MediaPlayerDevice):
     @property
     def state(self):
         """Return the media state."""
+        _LOGGER.error("KAROL: %s", self._status)
         if self._status is None:
             return STATE_OFF
         elif self._status['state'] == 'play':
@@ -229,6 +230,7 @@ class MpdDevice(MediaPlayerDevice):
         """Update available MPD playlists."""
         self._playlists = []
         for playlist_data in self._client.listplaylists():
+            _LOGGER.debug("Karol: playlist_data: %s", playlist_data)
             self._playlists.append(playlist_data['playlist'])
 
     def set_volume_level(self, volume):
