@@ -1,0 +1,24 @@
+{
+  "title": "Hisense AEH-W4E1",
+  "config": {
+    "step": {
+      "user": {
+        "description": "To integrate with AEH-W4B1 or AEH-W4E1 plesae setup your devices in a dedicated app, and input the app name, as well as your credentials",
+        "data": {
+          "appname": "App name",
+          "password": "Password",
+          "username": "Username",
+          "port": "Port to listen for state updates"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}

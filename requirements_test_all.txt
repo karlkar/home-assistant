@@ -3,6 +3,9 @@
 
 -r requirements_test.txt
 
+# homeassistant.components.hisense_aehw4e1
+AirCon==0.0.1
+
 # homeassistant.components.homekit
 HAP-python==2.9.1
 

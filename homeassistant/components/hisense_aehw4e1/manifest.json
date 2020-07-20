@@ -1,0 +1,12 @@
+{
+  "domain": "hisense_aehw4e1",
+  "name": "Hisense AEH-W4E1",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/hisense_aehw4e1",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": ["@karlkar"]
+}

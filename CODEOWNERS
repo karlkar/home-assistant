@@ -170,6 +170,7 @@ homeassistant/components/here_travel_time/* @eifinger
 homeassistant/components/hikvision/* @mezz64
 homeassistant/components/hikvisioncam/* @fbradyirl
 homeassistant/components/hisense_aehw4a1/* @bannhead
+homeassistant/components/hisense_aehw4e1/* @karlkar
 homeassistant/components/history/* @home-assistant/core
 homeassistant/components/hive/* @Rendili @KJonline
 homeassistant/components/home_connect/* @DavidMStraub
