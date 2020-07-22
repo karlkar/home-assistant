@@ -144,9 +144,16 @@ async def async_setup_entry(
             partial(notifier.notify, get_event_loop()),
         )
         _LOGGER.debug("Adding device %s, ip = %s", name, lan_ip)
+
         notifier.register_device(device)
         devices.append(device)
-        entities.append(ClimateAehW4e1(device, attributes["mac"]))
+        entity = ClimateAehW4e1(device, attributes["mac"])
+
+        def property_changed(entity: Entity, dev_name: str, name: str, value):
+            entity.schedule_update_ha_state()
+
+        device.property_change_listener = partial(property_changed, entity, device.name)
+        entities.append(entity)
 
     await _setup_hisense_server(hass, conf, devices)
 
@@ -242,7 +249,7 @@ class KeyExchangeView(HomeAssistantView):
     def __init__(self, query_handlers: QueryHandlers):
         self._query_handlers = query_handlers
 
-    async def get(self, request: web.Request):
+    async def post(self, request: web.Request):
         """Method responsible for exchanging the encryption keys"""
         return await self._query_handlers.key_exchange_handler(request)
 
