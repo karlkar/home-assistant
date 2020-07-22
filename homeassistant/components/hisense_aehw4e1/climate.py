@@ -152,7 +152,7 @@ async def async_setup_entry(
         def property_changed(entity: Entity, dev_name: str, name: str, value):
             entity.schedule_update_ha_state()
 
-        device.add_property_change_listener(partial(property_changed, entity, device.name))
+        device.add_property_change_listener(partial(property_changed, entity))
         entities.append(entity)
 
     await _setup_hisense_server(hass, conf, devices)
@@ -555,4 +555,4 @@ class ClimateAehW4e1(ClimateEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        return self._device.alive
+        return self._device.available
