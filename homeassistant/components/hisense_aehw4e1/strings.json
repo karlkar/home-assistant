@@ -15,7 +15,8 @@
     "error": {
       "cannot_connect": "Failed to connect",
       "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
+      "unknown": "Unexpected error",
+      "no_devices_added": "First add devices to your account in mobile app"
     },
     "abort": {
       "already_configured": "Device is already configured"

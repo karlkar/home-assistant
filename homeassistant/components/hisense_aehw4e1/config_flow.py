@@ -44,20 +44,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             session = async_get_clientsession(self.hass, verify_ssl=False)
+
+            app_code = APP_NAME_TO_CODE[user_input[CONF_APPNAME]]
+            user_input[CONF_APPNAME] = app_code
+
             try:
-                app_code = APP_NAME_TO_CODE[user_input[CONF_APPNAME]]
                 await perform_discovery(
                     session,
-                    app_code,
+                    user_input[CONF_APPNAME],
                     user_input[CONF_USERNAME],
                     user_input[CONF_PASSWORD],
                 )
-                user_input[CONF_APPNAME] = app_code
                 return self._handle_successful_sign_in(user_input)
             except NoDevicesConfigured:
-                # Ignore this exception, as it doesn't matter now
-                # TODO: Setup another step with explanation to user that he should setup devices first
-                return self._handle_successful_sign_in(user_input)
+                errors["base"] = "no_devices_added"
             except AuthFailed:
                 errors["base"] = "invalid_auth"
             except Error:

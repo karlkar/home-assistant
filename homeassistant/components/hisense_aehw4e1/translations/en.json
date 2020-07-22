@@ -6,7 +6,8 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "unknown": "Unexpected error",
+            "no_devices_added": "First add devices to your account in mobile app"
         },
         "step": {
             "user": {
@@ -17,6 +18,9 @@
                     "username": "Username",
                     "port": "Port to listen for state updates"
                 }
+            },
+            "devices": {
+              "description": "Before proceeding further add some devices to your account!"
             }
         }
     },
