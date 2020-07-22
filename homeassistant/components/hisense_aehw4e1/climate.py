@@ -4,7 +4,7 @@ from logging import getLogger
 from aiohttp import web
 from asyncio import get_event_loop
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, List, Optional
 
 from aircon.aircon import AcDevice, BaseDevice
 from aircon.discovery import perform_discovery

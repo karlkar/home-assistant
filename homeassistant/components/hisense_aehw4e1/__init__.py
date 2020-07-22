@@ -60,7 +60,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Hisense AEHW4E1 from a config entry."""
     # Store an API object for your platforms to access
-    # hass.data[DOMAIN][entry.entry_id] = MyApi(...)
+    hass.data[DOMAIN][entry.entry_id] = {}
 
     for platform in PLATFORMS:
         hass.async_create_task(
