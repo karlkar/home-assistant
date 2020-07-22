@@ -152,7 +152,7 @@ async def async_setup_entry(
         def property_changed(entity: Entity, dev_name: str, name: str, value):
             entity.schedule_update_ha_state()
 
-        device.property_change_listener = partial(property_changed, entity, device.name)
+        device.add_property_change_listener(partial(property_changed, entity, device.name))
         entities.append(entity)
 
     await _setup_hisense_server(hass, conf, devices)
