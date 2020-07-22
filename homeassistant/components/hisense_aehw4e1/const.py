@@ -4,9 +4,6 @@ DOMAIN = "hisense_aehw4e1"
 
 CONF_APPNAME = "appname"
 
-FAN_ULTRA_HIGH = "ultra_high"
-FAN_ULTRA_LOW = "ultra_low"
-
 APP_NAME_TO_CODE = {
     "AI-Home": "hismart-us",
     "Beko": "beko-eu",

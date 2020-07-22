@@ -4,7 +4,7 @@ from logging import getLogger
 from aiohttp import web
 from asyncio import get_event_loop
 from functools import partial
-from typing import Any, Callable, List, Optional
+from typing import Callable, List, Optional
 
 from aircon.aircon import AcDevice, BaseDevice
 from aircon.discovery import perform_discovery
@@ -65,7 +65,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 
-from .const import CONF_APPNAME, FAN_ULTRA_LOW, FAN_ULTRA_HIGH
+from .const import CONF_APPNAME
 
 _LOGGER = getLogger(__name__)
 
@@ -91,11 +91,9 @@ HVAC_MODES = [
 ]
 
 FAN_MODES = [
-    FAN_ULTRA_LOW,
     FAN_LOW,
     FAN_MEDIUM,
     FAN_HIGH,
-    FAN_ULTRA_HIGH,
     FAN_AUTO,
 ]
 
@@ -390,15 +388,11 @@ class ClimateAehW4e1(ClimateEntity):
         if fan_mode == FanSpeed.AUTO:
             return FAN_AUTO
         if fan_mode == FanSpeed.LOWER:
-            return FAN_ULTRA_LOW
-        if fan_mode == FanSpeed.LOW:
             return FAN_LOW
         if fan_mode == FanSpeed.MEDIUM:
             return FAN_MEDIUM
-        if fan_mode == FanSpeed.HIGH:
-            return FAN_HIGH
         if fan_mode == FanSpeed.HIGHER:
-            return FAN_ULTRA_HIGH
+            return FAN_HIGH
 
     @property
     def fan_modes(self) -> Optional[List[str]]:
@@ -447,15 +441,11 @@ class ClimateAehW4e1(ClimateEntity):
         """Set new target fan mode."""
         if fan_mode == FAN_AUTO:
             self._device.set_fan_speed(FanSpeed.AUTO)
-        elif fan_mode == FAN_ULTRA_LOW:
-            self._device.set_fan_speed(FanSpeed.LOWER)
         elif fan_mode == FAN_LOW:
-            self._device.set_fan_speed(FanSpeed.LOW)
+            self._device.set_fan_speed(FanSpeed.LOWER)
         elif fan_mode == FAN_MEDIUM:
             self._device.set_fan_speed(FanSpeed.MEDIUM)
         elif fan_mode == FAN_HIGH:
-            self._device.set_fan_speed(FanSpeed.HIGH)
-        elif fan_mode == FAN_ULTRA_HIGH:
             self._device.set_fan_speed(FanSpeed.HIGHER)
 
     def set_hvac_mode(self, hvac_mode: str) -> None:
