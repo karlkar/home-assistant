@@ -55,7 +55,6 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_PORT,
-    EVENT_HOMEASSISTANT_START,
     EVENT_HOMEASSISTANT_STOP,
     PRECISION_WHOLE,
     TEMP_CELSIUS,
@@ -65,7 +64,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 
-from .const import CONF_APPNAME
+from .const import CONF_APPNAME, DOMAIN
 
 _LOGGER = getLogger(__name__)
 
@@ -120,8 +119,7 @@ async def async_setup_entry(
     """Set up ACs based on a config entry."""
     session = async_get_clientsession(hass)
     conf = config_entry.data
-    listen_port = conf[CONF_PORT]
-    notifier = Notifier(listen_port)
+    notifier = hass.data[DOMAIN][config_entry.entry_id]
 
     discovery_result = await perform_discovery(
         session, conf[CONF_APPNAME], conf[CONF_USERNAME], conf[CONF_PASSWORD],
@@ -158,6 +156,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+# TODO Should be able to start derver wwithout any devices and add them in runtime
 async def _setup_hisense_server(hass: HomeAssistant, conf: dict, devices: [BaseDevice]):
     query_handlers = QueryHandlers(devices)
     app = web.Application()
@@ -350,7 +349,6 @@ class ClimateAehW4e1(ClimateEntity):
         if eco == Economy.ON:
             return PRESET_ECO
 
-        # TODO: Implement boost
         fast_cold_heat = self._device.get_fast_heat_cold()
         if fast_cold_heat == FastColdHeat.ON:
             return PRESET_BOOST
@@ -470,7 +468,6 @@ class ClimateAehW4e1(ClimateEntity):
         if preset_mode == PRESET_ECO:
             self._device.set_eco(Economy.ON)
         elif preset_mode == PRESET_BOOST:
-            # TODO implement boost
             self._device.set_fast_heat_cold(FastColdHeat.ON)
         elif preset_mode == PRESET_SLEEP:
             self._device.set_fan_mute(Quiet.ON)
