@@ -4,13 +4,21 @@ import logging
 import asyncio
 
 from aircon.app_mappings import SECRET_MAP
+from aircon.notifier import Notifier
 
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD, CONF_PORT
+from homeassistant.const import (
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    CONF_PORT,
+    EVENT_HOMEASSISTANT_START,
+    EVENT_HOMEASSISTANT_STOP,
+)
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, CONF_APPNAME
@@ -60,7 +68,17 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Hisense AEHW4E1 from a config entry."""
     # Store an API object for your platforms to access
-    hass.data[DOMAIN][entry.entry_id] = {}
+    configured_port = entry.data[CONF_PORT]
+    notifier = Notifier(configured_port)
+    hass.data[DOMAIN][entry.entry_id] = notifier
+
+    async def stop_notifier(event):
+        await notifier.stop()
+
+    session = async_get_clientsession(hass)
+    hass.async_add_job(notifier.start(session))
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_notifier)
 
     for platform in PLATFORMS:
         hass.async_create_task(
@@ -81,6 +99,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         )
     )
     if unload_ok:
+        notifier = hass.data[DOMAIN][entry.entry_id]
+        await notifier.stop()
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+
+async def async_remove_entry(hass, entry) -> None:
+    """Handle removal of an entry."""
+    notifier = hass.data[DOMAIN].get(entry.entry_id)
+    if not notifier is None:
+        await notifier.stop()

@@ -155,15 +155,6 @@ async def async_setup_entry(
 
     await _setup_hisense_server(hass, conf, devices)
 
-    async def stop_notifier(event):
-        notifier.stop()
-
-    async def run_notifier(event):
-        hass.add_job(notifier.start(session))
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_notifier)
-
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, run_notifier)
-
     async_add_entities(entities)
 
 
@@ -210,7 +201,7 @@ async def _setup_hisense_server(hass: HomeAssistant, conf: dict, devices: [BaseD
         if runner:
             await runner.cleanup()
 
-    async def start_hisense_server(event):
+    async def start_hisense_server():
         nonlocal site
         nonlocal runner
 
@@ -234,7 +225,7 @@ async def _setup_hisense_server(hass: HomeAssistant, conf: dict, devices: [BaseD
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_hisense_server)
 
     _LOGGER.debug("event listener for server added")
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_hisense_server)
+    hass.async_add_job(start_hisense_server)
 
 
 class KeyExchangeView(HomeAssistantView):
