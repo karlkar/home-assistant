@@ -76,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         await notifier.stop()
 
     session = async_get_clientsession(hass)
-    hass.async_add_job(notifier.start(session))
+    hass.loop.create_task(notifier.start(session))
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_notifier)
 

@@ -8,7 +8,6 @@ from typing import Callable, List, Optional
 
 from aircon.aircon import AcDevice, BaseDevice
 from aircon.discovery import perform_discovery
-from aircon.notifier import Notifier
 from aircon.query_handlers import QueryHandlers
 from aircon.properties import (
     AcWorkMode,
@@ -156,7 +155,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-# TODO Should be able to start derver wwithout any devices and add them in runtime
+# TODO Should be able to start server without any devices and add them in runtime
 async def _setup_hisense_server(hass: HomeAssistant, conf: dict, devices: [BaseDevice]):
     query_handlers = QueryHandlers(devices)
     app = web.Application()
@@ -224,7 +223,7 @@ async def _setup_hisense_server(hass: HomeAssistant, conf: dict, devices: [BaseD
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_hisense_server)
 
     _LOGGER.debug("event listener for server added")
-    hass.async_add_job(start_hisense_server)
+    hass.loop.create_task(start_hisense_server())
 
 
 class KeyExchangeView(HomeAssistantView):
