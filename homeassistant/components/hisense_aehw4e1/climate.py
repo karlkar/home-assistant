@@ -4,7 +4,9 @@ from logging import getLogger
 from aiohttp import web
 from asyncio import get_event_loop
 from functools import partial
+import json
 from typing import Callable, List, Optional
+import os
 
 from aircon.aircon import AcDevice, BaseDevice
 from aircon.discovery import perform_discovery
@@ -63,7 +65,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 
-from .const import CONF_APPNAME, DOMAIN
+from .const import CONF_APPNAME, CONF_LOCAL_DEVICES, DOMAIN
 
 _LOGGER = getLogger(__name__)
 
@@ -120,9 +122,24 @@ async def async_setup_entry(
     conf = config_entry.data
     notifier = hass.data[DOMAIN][config_entry.entry_id]
 
-    discovery_result = await perform_discovery(
-        session, conf[CONF_APPNAME], conf[CONF_USERNAME], conf[CONF_PASSWORD],
-    )
+    filepath = hass.config.path(".aehw4e1.json")
+    if conf[CONF_LOCAL_DEVICES] and os.path.isfile(filepath):
+        _LOGGER.debug("Reading devices from LOCAL source")
+        with open(filepath, "rt", encoding="utf-8") as file_handle:
+            discovery_result = json.load(file_handle)
+    else:
+        _LOGGER.debug("Reading devices from REMOTE source")
+        discovery_result = await perform_discovery(
+            session, conf[CONF_APPNAME], conf[CONF_USERNAME], conf[CONF_PASSWORD],
+        )
+        if conf[CONF_LOCAL_DEVICES]:
+            with open(filepath, "w", encoding="utf-8") as file_handle:
+                json.dump(
+                    discovery_result,
+                    file_handle,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
 
     devices = []
     entities = []

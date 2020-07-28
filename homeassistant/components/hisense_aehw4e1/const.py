@@ -3,6 +3,7 @@
 DOMAIN = "hisense_aehw4e1"
 
 CONF_APPNAME = "appname"
+CONF_LOCAL_DEVICES = "local_devices"
 
 APP_NAME_TO_CODE = {
     "AI-Home": "hismart-us",

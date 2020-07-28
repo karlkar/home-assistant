@@ -8,6 +8,7 @@
           "appname": "App name",
           "password": "Password",
           "username": "Username",
+          "local_devices": "Should download device list only once?",
           "port": "Port to listen for state updates"
         }
       }

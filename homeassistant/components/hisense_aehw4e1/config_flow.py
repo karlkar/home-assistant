@@ -14,6 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     APP_NAME_TO_CODE,
     CONF_APPNAME,
+    CONF_LOCAL_DEVICES,
     DOMAIN,
 )
 
@@ -24,6 +25,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_APPNAME): vol.In(APP_NAME_TO_CODE.keys()),
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_LOCAL_DEVICES): bool,
         vol.Optional(CONF_PORT, default=8889): int,
     }
 )
@@ -38,6 +40,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _handle_successful_sign_in(self, user_input: dict):
         title = user_input[CONF_APPNAME] + " " + user_input[CONF_USERNAME]
         return self.async_create_entry(title=title, data=user_input)
+
+    async def async_step_import(self, import_config):
+        """Import a config entry from configuration.yaml."""
+        return await self.async_step_user(import_config)
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
