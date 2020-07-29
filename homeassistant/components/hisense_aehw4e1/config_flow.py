@@ -25,8 +25,8 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_APPNAME): vol.In(APP_NAME_TO_CODE.keys()),
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Required(CONF_LOCAL_DEVICES): bool,
-        vol.Optional(CONF_PORT, default=8889): int,
+        vol.Required(CONF_LOCAL_DEVICES, default=True): bool,
+        vol.Required(CONF_PORT, default=8889): int,
     }
 )
 
