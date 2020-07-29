@@ -21,21 +21,35 @@ from homeassistant.const import (
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import APP_NAME_TO_CODE, DOMAIN, CONF_APPNAME, CONF_LOCAL_DEVICES
+from .const import (
+    APP_NAME_TO_CODE,
+    DOMAIN,
+    CONF_APPCODE,
+    CONF_APPNAME,
+    CONF_LOCAL_DEVICES,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
+BASE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_LOCAL_DEVICES, default=True): cv.boolean,
+        vol.Required(CONF_PORT, default=8888): cv.port,
+    }
+)
+
 CONFIG_SCHEMA = vol.Schema(
     {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_APPNAME): vol.In(APP_NAME_TO_CODE.keys()),
-                vol.Required(CONF_USERNAME): cv.string,
-                vol.Required(CONF_PASSWORD): cv.string,
-                vol.Required(CONF_LOCAL_DEVICES): cv.boolean,
-                vol.Optional(CONF_PORT, default=8888): cv.port,
-            }
-        )
+        DOMAIN: vol.Any(
+            BASE_SCHEMA.extend(
+                {vol.Required(CONF_APPNAME): vol.In(APP_NAME_TO_CODE.keys())}
+            ),
+            BASE_SCHEMA.extend(
+                {vol.Required(CONF_APPCODE): vol.In(APP_NAME_TO_CODE.values())}
+            ),
+        ),
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -51,12 +65,25 @@ async def async_setup(hass: HomeAssistant, config: dict):
         return True
 
     conf = config.get(DOMAIN, [])
+    # normalize config
+    app_name = None
+    if CONF_APPCODE in conf.keys():
+        app_code = conf[CONF_APPCODE]
+        for key, value in APP_NAME_TO_CODE.items():
+            if value == app_code:
+                app_name = key
+                break
+    else:
+        app_name = conf[CONF_APPNAME]
+    if app_name is None:
+        raise ValueError("Incorrect config")
+
     hass.async_add_job(
         hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": config_entries.SOURCE_IMPORT},
             data={
-                CONF_APPNAME: conf[CONF_APPNAME],
+                CONF_APPNAME: app_name,
                 CONF_USERNAME: conf[CONF_USERNAME],
                 CONF_PASSWORD: conf[CONF_PASSWORD],
                 CONF_LOCAL_DEVICES: conf[CONF_LOCAL_DEVICES],

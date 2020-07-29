@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Device is already configured"
+            "port_is_used": "Selected port is already used by different account/app",
+            "already_configured": "Account/app is already configured"
         },
         "error": {
             "cannot_connect": "Failed to connect",
