@@ -89,6 +89,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input[CONF_USERNAME],
                     user_input[CONF_PASSWORD],
                 )
+                user_input[CONF_APPNAME] = app_code
                 return self._handle_successful_sign_in(user_input)
             except NoDevicesConfigured:
                 errors["base"] = "no_devices_added"

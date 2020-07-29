@@ -122,6 +122,7 @@ async def async_setup_entry(
     conf = config_entry.data
     notifier = hass.data[DOMAIN][config_entry.entry_id]
 
+    # TODO: Remove file on removal
     filepath = hass.config.path(".aehw4e1.json")
     if conf[CONF_LOCAL_DEVICES] and os.path.isfile(filepath):
         _LOGGER.debug("Reading devices from LOCAL source")
