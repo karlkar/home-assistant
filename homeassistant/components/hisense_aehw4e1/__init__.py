@@ -1,9 +1,10 @@
 """The Hisense AEHW4E1 integration."""
+from aiohttp import ClientSession
+import asyncio
 import logging
 
-import asyncio
-
 from aircon.app_mappings import SECRET_MAP
+from aircon.ayla_api import get_ayla_api
 from aircon.notifier import Notifier
 
 import voluptuous as vol
@@ -26,7 +27,6 @@ from .const import (
     DOMAIN,
     CONF_APPCODE,
     CONF_APPNAME,
-    CONF_LOCAL_DEVICES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,8 +35,7 @@ BASE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_LOCAL_DEVICES, default=True): cv.boolean,
-        vol.Required(CONF_PORT, default=8888): cv.port,
+        vol.Required(CONF_PORT, default=8889): cv.port,
     }
 )
 
@@ -86,7 +85,6 @@ async def async_setup(hass: HomeAssistant, config: dict):
                 CONF_APPNAME: app_name,
                 CONF_USERNAME: conf[CONF_USERNAME],
                 CONF_PASSWORD: conf[CONF_PASSWORD],
-                CONF_LOCAL_DEVICES: conf[CONF_LOCAL_DEVICES],
                 CONF_PORT: conf[CONF_PORT],
             },
         )
@@ -94,19 +92,36 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up Hisense AEHW4E1 from a config entry."""
+def _setup_notifier(
+    hass: HomeAssistant, session: ClientSession, entry: ConfigEntry
+) -> Notifier:
     configured_port = entry.data[CONF_PORT]
     notifier = Notifier(configured_port)
-    hass.data[DOMAIN][entry.entry_id] = notifier
 
     async def stop_notifier(event):
         await notifier.stop()
 
-    session = async_get_clientsession(hass)
     hass.loop.create_task(notifier.start(session))
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_notifier)
+
+    return notifier
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up Hisense AEHW4E1 from a config entry."""
+    session = async_get_clientsession(hass)
+
+    ayla_api = get_ayla_api(
+        entry.data[CONF_APPNAME],
+        entry.data[CONF_USERNAME],
+        entry.data[CONF_PASSWORD],
+        session,
+    )
+
+    notifier = _setup_notifier(hass, session, entry)
+
+    hass.data[DOMAIN][entry.entry_id] = {"api": ayla_api, "notifier": notifier}
 
     for platform in PLATFORMS:
         hass.async_create_task(
@@ -127,7 +142,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         )
     )
     if unload_ok:
-        notifier = hass.data[DOMAIN][entry.entry_id]
+        ayla_api = hass.data[DOMAIN][entry.entry_id]["api"]
+        await ayla_api.async_sign_out()
+
+        notifier = hass.data[DOMAIN][entry.entry_id]["notifier"]
         await notifier.stop()
         hass.data[DOMAIN].pop(entry.entry_id)
 
@@ -136,6 +154,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_remove_entry(hass, entry) -> None:
     """Handle removal of an entry."""
-    notifier = hass.data[DOMAIN].get(entry.entry_id)
-    if not notifier is None:
-        await notifier.stop()
+    entry_data = hass.data[DOMAIN].get(entry.entry_id)
+    if entry_data:
+        ayla_api = entry_data.get("api")
+        if ayla_api:
+            await ayla_api.async_sign_out()
+
+        notifier = entry_data.get("notifier")
+        if notifier:
+            await notifier.stop()

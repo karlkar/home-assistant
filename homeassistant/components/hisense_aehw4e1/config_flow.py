@@ -1,7 +1,7 @@
 """Config flow for Hisense AEHW4E1 integration."""
 import logging
 
-from aircon.discovery import perform_discovery
+from aircon.ayla_api import get_ayla_api
 from aircon.error import AuthFailed, Error, NoDevicesConfigured
 
 import voluptuous as vol
@@ -14,7 +14,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     APP_NAME_TO_CODE,
     CONF_APPNAME,
-    CONF_LOCAL_DEVICES,
     DOMAIN,
 )
 
@@ -25,7 +24,6 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_APPNAME): vol.In(APP_NAME_TO_CODE.keys()),
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Required(CONF_LOCAL_DEVICES, default=True): bool,
         vol.Required(CONF_PORT, default=8889): int,
     }
 )
@@ -82,13 +80,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             app_code = APP_NAME_TO_CODE[user_input[CONF_APPNAME]]
 
+            ayla_api = get_ayla_api(
+                app_code, user_input[CONF_USERNAME], user_input[CONF_PASSWORD], session
+            )
             try:
-                await perform_discovery(
-                    session,
-                    app_code,
-                    user_input[CONF_USERNAME],
-                    user_input[CONF_PASSWORD],
-                )
+                await ayla_api.async_sign_in()
                 user_input[CONF_APPNAME] = app_code
                 return self._handle_successful_sign_in(user_input)
             except NoDevicesConfigured:

@@ -4,12 +4,9 @@ from logging import getLogger
 from aiohttp import web
 from asyncio import get_event_loop
 from functools import partial
-import json
 from typing import Callable, List, Optional
-import os
 
 from aircon.aircon import AcDevice, BaseDevice
-from aircon.discovery import perform_discovery
 from aircon.query_handlers import QueryHandlers
 from aircon.properties import (
     AcWorkMode,
@@ -53,8 +50,6 @@ from homeassistant.components.http import HomeAssistantView, real_ip
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
-    CONF_USERNAME,
-    CONF_PASSWORD,
     CONF_PORT,
     EVENT_HOMEASSISTANT_STOP,
     PRECISION_WHOLE,
@@ -62,10 +57,9 @@ from homeassistant.const import (
     TEMP_FAHRENHEIT,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 
-from .const import CONF_APPNAME, CONF_LOCAL_DEVICES, DOMAIN
+from .const import DOMAIN
 
 _LOGGER = getLogger(__name__)
 
@@ -118,49 +112,19 @@ async def async_setup_entry(
     async_add_entities: Callable[[List[Entity], bool], None],
 ):
     """Set up ACs based on a config entry."""
-    session = async_get_clientsession(hass)
     conf = config_entry.data
-    notifier = hass.data[DOMAIN][config_entry.entry_id]
+    ayla_api = hass.data[DOMAIN][config_entry.entry_id]["api"]
+    notifier = hass.data[DOMAIN][config_entry.entry_id]["notifier"]
 
-    # TODO: Remove file on removal
-    filepath = hass.config.path(".aehw4e1.json")
-    if conf[CONF_LOCAL_DEVICES] and os.path.isfile(filepath):
-        _LOGGER.debug("Reading devices from LOCAL source")
-        with open(filepath, "rt", encoding="utf-8") as file_handle:
-            discovery_result = json.load(file_handle)
-    else:
-        _LOGGER.debug("Reading devices from REMOTE source")
-        discovery_result = await perform_discovery(
-            session, conf[CONF_APPNAME], conf[CONF_USERNAME], conf[CONF_PASSWORD],
-        )
-        if conf[CONF_LOCAL_DEVICES]:
-            with open(filepath, "w", encoding="utf-8") as file_handle:
-                json.dump(
-                    discovery_result,
-                    file_handle,
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                )
-
-    devices = []
+    await ayla_api.async_sign_in()
+    devices = await ayla_api.async_get_devices()
     entities = []
-    for attributes in discovery_result:
-        name = attributes["product_name"]
-        lan_ip = attributes["lan_ip"]
-        lan_ip_key = attributes["lanip_key"]
-        lan_ip_key_id = attributes["lanip_key_id"]
-        device = AcDevice(
-            name,
-            lan_ip,
-            lan_ip_key,
-            lan_ip_key_id,
-            partial(notifier.notify, get_event_loop()),
-        )
-        _LOGGER.debug("Adding device %s, ip = %s", name, lan_ip)
+    for device in devices:
+        device.set_queue_listener(partial(notifier.notify, get_event_loop()))
+        _LOGGER.debug("Adding device %s, ip = %s", device.name, device.ip_address)
 
         notifier.register_device(device)
-        devices.append(device)
-        entity = ClimateAehW4e1(device, attributes["mac"])
+        entity = ClimateAehW4e1(device)
 
         def property_changed(entity: Entity, dev_name: str, name: str, value):
             entity.schedule_update_ha_state()
@@ -292,9 +256,8 @@ class PropertyUpdateView(HomeAssistantView):
 class ClimateAehW4e1(ClimateEntity):
     """Represents device to be controlled"""
 
-    def __init__(self, device: AcDevice, mac: str):
+    def __init__(self, device: AcDevice):
         self._device = device
-        self._mac = mac
         self._device.queue_status()
         super().__init__()
 
@@ -540,7 +503,7 @@ class ClimateAehW4e1(ClimateEntity):
     @property
     def unique_id(self) -> Optional[str]:
         """Return a unique ID."""
-        return self._mac
+        return self._device.mac
 
     @property
     def name(self) -> Optional[str]:
